@@ -1,0 +1,531 @@
+<!DOCTYPE html>
+<html lang="mr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>आरंभ Pure Veg - Digital Menu</title>
+    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+    <style>
+        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+        body {
+            margin: 0; padding: 0;
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #f8fafc; color: #1e293b;
+            padding-bottom: 95px;
+        }
+        .header {
+            position: sticky; top: 0; z-index: 50;
+            background: linear-gradient(135deg, #d97706, #b45309);
+            color: #fff; padding: 12px 16px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.15);
+        }
+        .header-top { display: flex; justify-content: space-between; align-items: center; max-width: 720px; margin: 0 auto; }
+        .brand { display: flex; align-items: center; gap: 10px; }
+        .logo {
+            width: 38px; height: 38px; border-radius: 50%;
+            background: #fff; color: #d97706;
+            display: flex; align-items: center; justify-content: center;
+            font-weight: 900; font-size: 16px;
+        }
+        .brand h1 { margin: 0; font-size: 18px; font-weight: 800; line-height: 1.1; }
+        .brand p { margin: 2px 0 0; font-size: 11px; color: #fef3c7; }
+        .table-badge {
+            background: #fff; color: #b45309;
+            padding: 6px 12px; border-radius: 20px;
+            font-weight: 900; font-size: 13px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            cursor: pointer;
+        }
+        .controls {
+            position: sticky; top: 62px; z-index: 40;
+            background: #fff; padding: 10px 14px;
+            border-bottom: 1px solid #e2e8f0;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.04);
+        }
+        .controls-inner { max-width: 720px; margin: 0 auto; }
+        .search-box {
+            width: 100%; padding: 10px 14px;
+            border: 1.5px solid #cbd5e1; border-radius: 10px;
+            font-size: 14px; outline: none; background: #f8fafc;
+        }
+        .search-box:focus { border-color: #d97706; background: #fff; }
+        .cats {
+            display: flex; gap: 8px; overflow-x: auto;
+            margin-top: 10px; padding-bottom: 2px;
+            scrollbar-width: none;
+        }
+        .cats::-webkit-scrollbar { display: none; }
+        .cat-pill {
+            white-space: nowrap; padding: 7px 14px;
+            border-radius: 20px; border: 1px solid #e2e8f0;
+            background: #f1f5f9; color: #334155;
+            font-size: 12px; font-weight: 700; cursor: pointer;
+        }
+        .cat-pill.active { background: #d97706; color: #fff; border-color: #d97706; }
+        .menu-container { padding: 12px 14px; max-width: 720px; margin: 0 auto; }
+        .cat-heading {
+            font-size: 13px; font-weight: 900; color: #b45309;
+            text-transform: uppercase; letter-spacing: 0.5px;
+            margin: 16px 0 8px 2px; padding-bottom: 4px;
+            border-bottom: 2px solid #fde68a;
+        }
+        .menu-card {
+            background: #fff; border: 1px solid #e2e8f0;
+            border-radius: 14px; padding: 12px 14px;
+            margin-bottom: 10px;
+            display: flex; justify-content: space-between; align-items: center; gap: 10px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+        }
+        .menu-card.unavailable { opacity: 0.55; background: #f8fafc; }
+        .dish-info { flex: 1; min-width: 0; }
+        .veg-dot {
+            display: inline-block; width: 12px; height: 12px;
+            border: 1.5px solid #16a34a; border-radius: 2px;
+            position: relative; margin-right: 5px; vertical-align: middle;
+        }
+        .veg-dot::after {
+            content: ''; position: absolute; top: 2px; left: 2px;
+            width: 5px; height: 5px; border-radius: 50%; background: #16a34a;
+        }
+        .dish-name-mr { font-size: 15px; font-weight: 800; color: #0f172a; margin: 0; }
+        .dish-name-en { font-size: 12px; color: #64748b; margin: 2px 0 4px; font-weight: 600; }
+        .dish-price { font-size: 15px; font-weight: 900; color: #b45309; margin: 0; }
+        .badge-unavail {
+            background: #fee2e2; color: #b91c1c;
+            font-size: 11px; font-weight: 800;
+            padding: 6px 10px; border-radius: 8px; white-space: nowrap;
+        }
+        .add-btn {
+            background: #fffbeb; color: #b45309;
+            border: 1.5px solid #d97706; border-radius: 10px;
+            padding: 8px 18px; font-size: 13px; font-weight: 800;
+            cursor: pointer; white-space: nowrap;
+        }
+        .qty-box {
+            display: flex; align-items: center; gap: 8px;
+            background: #d97706; color: #fff;
+            border-radius: 10px; padding: 4px 6px;
+        }
+        .qty-btn {
+            background: rgba(255,255,255,0.2); color: #fff;
+            border: none; width: 28px; height: 28px; border-radius: 7px;
+            font-size: 16px; font-weight: 900; cursor: pointer;
+        }
+        .qty-val { font-size: 14px; font-weight: 900; min-width: 18px; text-align: center; }
+        .cart-bar {
+            position: fixed; bottom: 0; left: 0; right: 0; z-index: 60;
+            background: #0f172a; color: #fff;
+            padding: 12px 16px; display: none;
+            justify-content: space-between; align-items: center;
+            box-shadow: 0 -4px 16px rgba(0,0,0,0.2);
+        }
+        .cart-bar.show { display: flex; }
+        .cart-bar-btn {
+            background: #16a34a; color: #fff; border: none;
+            padding: 10px 18px; border-radius: 10px;
+            font-size: 14px; font-weight: 800; cursor: pointer;
+        }
+        .modal-bg {
+            position: fixed; inset: 0; z-index: 100;
+            background: rgba(15,23,42,0.7);
+            display: none; align-items: flex-end; justify-content: center;
+        }
+        .modal-bg.open { display: flex; }
+        .modal-sheet {
+            background: #fff; width: 100%; max-width: 540px;
+            max-height: 90vh; border-radius: 20px 20px 0 0;
+            display: flex; flex-direction: column; overflow: hidden;
+        }
+        .modal-head {
+            padding: 14px 18px; background: #1e293b; color: #fff;
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .modal-body { padding: 16px; overflow-y: auto; flex: 1; }
+        .cart-row {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 10px 0; border-bottom: 1px solid #f1f5f9;
+        }
+        .input-field {
+            width: 100%; padding: 10px 12px; margin-bottom: 10px;
+            border: 1.5px solid #cbd5e1; border-radius: 10px;
+            font-size: 14px; outline: none;
+        }
+        .input-field:focus { border-color: #d97706; }
+        .submit-btn {
+            width: 100%; background: #16a34a; color: #fff;
+            border: none; padding: 14px; border-radius: 12px;
+            font-size: 16px; font-weight: 900; cursor: pointer;
+        }
+        .submit-btn:disabled { background: #94a3b8; }
+        .status-card {
+            margin: 12px auto; padding: 14px; border-radius: 14px;
+            font-size: 13px; font-weight: 700; display: none;
+            max-width: 692px;
+        }
+        .status-pending { background: #fef3c7; color: #92400e; border: 1.5px solid #f59e0b; display: block; }
+        .status-accepted { background: #dcfce7; color: #166534; border: 1.5px solid #22c55e; display: block; }
+        .status-rejected { background: #fee2e2; color: #991b1b; border: 1.5px solid #ef4444; display: block; }
+        .empty-msg { text-align: center; padding: 40px 20px; color: #64748b; font-size: 14px; font-weight: 600; }
+    </style>
+</head>
+<body>
+
+    <header class="header">
+        <div class="header-top">
+            <div class="brand">
+                <div class="logo">HA</div>
+                <div>
+                    <h1>आरंभ Pure Veg</h1>
+                    <p>Digital QR Menu &bull; 100% Pure Veg</p>
+                </div>
+            </div>
+            <div id="table-badge" class="table-badge" onclick="changeTableManual()">Table: --</div>
+        </div>
+    </header>
+
+    <div id="order-status-banner" class="status-card"></div>
+
+    <div class="controls">
+        <div class="controls-inner">
+            <input type="text" id="search-input" class="search-box" placeholder="🔍 डिश शोधा (उदा. Paneer, Misal, Roti, Dosa)..." oninput="renderMenu()">
+            <div id="category-bar" class="cats"></div>
+        </div>
+    </div>
+
+    <main id="menu-list" class="menu-container"></main>
+
+    <div id="cart-bar" class="cart-bar">
+        <div>
+            <div id="cart-bar-count" style="font-size:12px; color:#cbd5e1; font-weight:700;">0 आयटम</div>
+            <div id="cart-bar-total" style="font-size:18px; font-weight:900; color:#fbbf24;">₹0</div>
+        </div>
+        <button class="cart-bar-btn" onclick="openCartModal()">ऑर्डर पहा ➔</button>
+    </div>
+
+    <div id="cart-modal" class="modal-bg">
+        <div class="modal-sheet">
+            <div class="modal-head">
+                <span style="font-weight:800; font-size:16px;">🛒 तुमची ऑर्डर (<span id="modal-table-name"></span>)</span>
+                <button onclick="closeCartModal()" style="background:none; border:none; color:#fff; font-size:24px; cursor:pointer;">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div id="cart-items-list"></div>
+                <div style="display:flex; justify-content:space-between; font-size:18px; font-weight:900; padding:12px 0; border-top:2px dashed #cbd5e1; margin-top:8px;">
+                    <span>एकूण रक्कम:</span>
+                    <span id="modal-total" style="color:#b45309;">₹0</span>
+                </div>
+                <div style="margin-top:10px;">
+                    <input type="text" id="cust-name" class="input-field" placeholder="तुमचे नाव (ऐच्छिक / Optional)">
+                    <input type="tel" id="cust-phone" class="input-field" maxlength="10" placeholder="मोबाईल नंबर - WhatsApp बिलासाठी (ऐच्छिक)">
+                </div>
+                <button id="place-order-btn" class="submit-btn" onclick="placeOrder()">✅ ऑर्डर कन्फर्म करा (Place Order)</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const firebaseConfig = {
+            apiKey: "AIzaSyDgVUn8CnDInfIvHNgGW29Tgck_mudRPSw",
+            authDomain: "arambh-pos.firebaseapp.com",
+            databaseURL: "https://arambh-pos-default-rtdb.asia-southeast1.firebasedatabase.app",
+            projectId: "arambh-pos",
+            storageBucket: "arambh-pos.firebasestorage.app",
+            messagingSenderId: "695763617981",
+            appId: "1:695763617981:web:ad5f8d5cb0ed68ca944fd4"
+        };
+
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.database();
+
+        // All 167 items built-in so menu loads instantly
+        const DEFAULT_MENU = [{"id": 1, "code": "1", "nameEn": "Shabudana Khichadi", "nameMr": "शाबुदाणा खिचडी", "category": "नाश्ता", "price": 80, "type": "Normal", "available": true}, {"id": 2, "code": "2", "nameEn": "Misal", "nameMr": "मिसळ", "category": "नाश्ता", "price": 100, "type": "Normal", "available": true}, {"id": 3, "code": "3", "nameEn": "Pohe", "nameMr": "पोहे", "category": "नाश्ता", "price": 50, "type": "Normal", "available": true}, {"id": 4, "code": "4", "nameEn": "Rassa Vada", "nameMr": "रस्सा वडा", "category": "नाश्ता", "price": 80, "type": "Normal", "available": true}, {"id": 5, "code": "5", "nameEn": "Vada Pav", "nameMr": "वडा पाव", "category": "नाश्ता", "price": 30, "type": "Normal", "available": true}, {"id": 6, "code": "6", "nameEn": "Upama", "nameMr": "उपमा", "category": "नाश्ता", "price": 60, "type": "Normal", "available": true}, {"id": 7, "code": "7", "nameEn": "Gode Shira", "nameMr": "गोड शिरा", "category": "नाश्ता", "price": 60, "type": "Normal", "available": true}, {"id": 8, "code": "8", "nameEn": "Khekada Bhaji", "nameMr": "खेकडा भजी", "category": "नाश्ता", "price": 100, "type": "Normal", "available": true}, {"id": 9, "code": "9", "nameEn": "Kanda Bhaji", "nameMr": "कांदा भजी", "category": "नाश्ता", "price": 80, "type": "Normal", "available": true}, {"id": 10, "code": "10", "nameEn": "Tea", "nameMr": "चहा", "category": "चहा / कॉफी", "price": 20, "type": "Normal", "available": true}, {"id": 11, "code": "11", "nameEn": "Coffee", "nameMr": "कॉफी", "category": "चहा / कॉफी", "price": 30, "type": "Normal", "available": true}, {"id": 12, "code": "12", "nameEn": "Milk", "nameMr": "दूध", "category": "चहा / कॉफी", "price": 30, "type": "Normal", "available": true}, {"id": 13, "code": "13", "nameEn": "Black Tea", "nameMr": "ब्लॅक टी", "category": "चहा / कॉफी", "price": 20, "type": "Normal", "available": true}, {"id": 14, "code": "14", "nameEn": "Green Tea", "nameMr": "ग्रीन टी", "category": "चहा / कॉफी", "price": 30, "type": "Normal", "available": true}, {"id": 15, "code": "15", "nameEn": "Black Coffee", "nameMr": "ब्लॅक कॉफी", "category": "चहा / कॉफी", "price": 30, "type": "Normal", "available": true}, {"id": 16, "code": "16", "nameEn": "Idli Sambar", "nameMr": "इडली सांबर", "category": "साऊथ इंडियन", "price": 100, "type": "Normal", "available": true}, {"id": 17, "code": "17", "nameEn": "Medu Vada", "nameMr": "मेंदू वडा", "category": "साऊथ इंडियन", "price": 120, "type": "Normal", "available": true}, {"id": 18, "code": "18", "nameEn": "Batata Vada Sambar", "nameMr": "बटाटा वडा सांबर", "category": "साऊथ इंडियन", "price": 100, "type": "Normal", "available": true}, {"id": 19, "code": "19", "nameEn": "Mix Vada Sambar", "nameMr": "मिक्स वडा सांबर", "category": "साऊथ इंडियन", "price": 100, "type": "Normal", "available": true}, {"id": 20, "code": "20", "nameEn": "Sada Dosa", "nameMr": "साधा डोसा", "category": "साऊथ इंडियन", "price": 100, "type": "Normal", "available": true}, {"id": 21, "code": "21", "nameEn": "Masala Dosa", "nameMr": "मसाला डोसा", "category": "साऊथ इंडियन", "price": 100, "type": "Normal", "available": true}, {"id": 22, "code": "22", "nameEn": "Paper Dosa", "nameMr": "पेपर डोसा", "category": "साऊथ इंडियन", "price": 150, "type": "Normal", "available": true}, {"id": 23, "code": "23", "nameEn": "Cheese Sada Dosa", "nameMr": "चिज साधा डोसा", "category": "साऊथ इंडियन", "price": 120, "type": "Normal", "available": true}, {"id": 24, "code": "24", "nameEn": "Cheese Masala Dosa", "nameMr": "चिज मसाला डोसा", "category": "साऊथ इंडियन", "price": 130, "type": "Normal", "available": true}, {"id": 25, "code": "25", "nameEn": "Cheese Schezwan Dosa", "nameMr": "चिज शेजवान डोसा", "category": "साऊथ इंडियन", "price": 130, "type": "Normal", "available": true}, {"id": 26, "code": "26", "nameEn": "Onion Uttapa", "nameMr": "ओनियन उत्तपा", "category": "साऊथ इंडियन", "price": 110, "type": "Normal", "available": true}, {"id": 27, "code": "27", "nameEn": "Onion Tomato Uttapa", "nameMr": "ओनियन टोमॅटो उत्तपा", "category": "साऊथ इंडियन", "price": 110, "type": "Normal", "available": true}, {"id": 28, "code": "28", "nameEn": "Masala Uttapa", "nameMr": "मसाला उत्तपा", "category": "साऊथ इंडियन", "price": 120, "type": "Normal", "available": true}, {"id": 29, "code": "29", "nameEn": "Mysore Masala Dosa", "nameMr": "मैसुर मसाला डोसा", "category": "साऊथ इंडियन", "price": 120, "type": "Normal", "available": true}, {"id": 30, "code": "30", "nameEn": "Manchow Soup", "nameMr": "मनचाव सुप", "category": "स्टार्टर्स", "price": 90, "type": "Normal", "available": true}, {"id": 31, "code": "31", "nameEn": "Tomato Soup", "nameMr": "टोमॅटो सुप", "category": "स्टार्टर्स", "price": 90, "type": "Normal", "available": true}, {"id": 32, "code": "32", "nameEn": "Roasted Papad", "nameMr": "रोस्ट पापड", "category": "स्टार्टर्स", "price": 20, "type": "Normal", "available": true}, {"id": 33, "code": "33", "nameEn": "Fry Papad (Udid)", "nameMr": "फ्राय पापड (उडीद)", "category": "स्टार्टर्स", "price": 30, "type": "Normal", "available": true}, {"id": 34, "code": "34", "nameEn": "Masala Papad (Nagli)", "nameMr": "मसाला पापड (नागली)", "category": "स्टार्टर्स", "price": 50, "type": "Normal", "available": true}, {"id": 35, "code": "35", "nameEn": "Masala Papad (Plain)", "nameMr": "मसाला पापड (साधा)", "category": "स्टार्टर्स", "price": 50, "type": "Normal", "available": true}, {"id": 36, "code": "36", "nameEn": "Shindi Papad", "nameMr": "शिंदी पापड", "category": "स्टार्टर्स", "price": 70, "type": "Normal", "available": true}, {"id": 37, "code": "37", "nameEn": "Fry Papad (Plain)", "nameMr": "फ्राय पापड (साधा)", "category": "स्टार्टर्स", "price": 30, "type": "Normal", "available": true}, {"id": 38, "code": "38", "nameEn": "Paneer Tikka Dry", "nameMr": "पनीर टिक्का ड्राय", "category": "स्टार्टर्स", "price": 200, "type": "Normal", "available": true}, {"id": 39, "code": "39", "nameEn": "Kothimbir Vadi", "nameMr": "कोथंबिर वडी", "category": "स्टार्टर्स", "price": 150, "type": "Normal", "available": true}, {"id": 40, "code": "40", "nameEn": "Aloo Vadi", "nameMr": "आलु वडी", "category": "स्टार्टर्स", "price": 150, "type": "Normal", "available": true}, {"id": 41, "code": "41", "nameEn": "Hara Bhara Kabab", "nameMr": "हराभरा कबाब", "category": "स्टार्टर्स", "price": 180, "type": "Normal", "available": true}, {"id": 42, "code": "42", "nameEn": "Veg Crispy", "nameMr": "व्हेज क्रिस्पी", "category": "स्टार्टर्स", "price": 180, "type": "Normal", "available": true}, {"id": 43, "code": "43", "nameEn": "Soyabean Chilli", "nameMr": "सोयाबीन चिल्ली", "category": "स्टार्टर्स", "price": 160, "type": "Normal", "available": true}, {"id": 44, "code": "44", "nameEn": "Paneer Chilli", "nameMr": "पनीर चिल्ली", "category": "स्टार्टर्स", "price": 200, "type": "Normal", "available": true}, {"id": 45, "code": "45", "nameEn": "Paneer Crispy", "nameMr": "पनीर क्रिस्पी", "category": "स्टार्टर्स", "price": 200, "type": "Normal", "available": true}, {"id": 46, "code": "46", "nameEn": "Veg Manchurian (Dry)", "nameMr": "व्हेज मंचुरियन (ड्राय)", "category": "स्टार्टर्स", "price": 200, "type": "Normal", "available": true}, {"id": 47, "code": "47", "nameEn": "Mushroom Chilli", "nameMr": "मशरुम चिल्ली", "category": "स्टार्टर्स", "price": 190, "type": "Normal", "available": true}, {"id": 48, "code": "48", "nameEn": "Veg 65", "nameMr": "व्हेज ६५", "category": "स्टार्टर्स", "price": 180, "type": "Normal", "available": true}, {"id": 49, "code": "49", "nameEn": "Mushroom Manchurian", "nameMr": "मशरुम मंचुरियन", "category": "स्टार्टर्स", "price": 200, "type": "Normal", "available": true}, {"id": 50, "code": "50", "nameEn": "Paneer 65", "nameMr": "पनीर ६५", "category": "स्टार्टर्स", "price": 200, "type": "Normal", "available": true}, {"id": 51, "code": "51", "nameEn": "Paneer Satay", "nameMr": "पनीर साठे", "category": "स्टार्टर्स", "price": 210, "type": "Normal", "available": true}, {"id": 52, "code": "52", "nameEn": "Veg Manchurian (Gravy)", "nameMr": "व्हेज मंचुरियन (ग्रेव्ही)", "category": "स्टार्टर्स", "price": 190, "type": "Normal", "available": true}, {"id": 53, "code": "53", "nameEn": "Mix Veg", "nameMr": "मिक्स व्हेज", "category": "पंजाबी डिशेस", "price": 180, "type": "Normal", "available": true}, {"id": 54, "code": "54", "nameEn": "Veg Kolhapuri", "nameMr": "व्हेज कोल्हापुरी", "category": "पंजाबी डिशेस", "price": 190, "type": "Normal", "available": true}, {"id": 55, "code": "55", "nameEn": "Veg Kheema Masala", "nameMr": "व्हेज खिमा मसाला", "category": "पंजाबी डिशेस", "price": 190, "type": "Normal", "available": true}, {"id": 56, "code": "56", "nameEn": "Veg Jaipuri", "nameMr": "व्हेज जयपुरी", "category": "पंजाबी डिशेस", "price": 200, "type": "Normal", "available": true}, {"id": 57, "code": "57", "nameEn": "Veg Koliwada", "nameMr": "व्हेज कोलीवाडा", "category": "पंजाबी डिशेस", "price": 190, "type": "Normal", "available": true}, {"id": 58, "code": "58", "nameEn": "Veg Maratha", "nameMr": "व्हेज मराठा", "category": "पंजाबी डिशेस", "price": 220, "type": "Normal", "available": true}, {"id": 59, "code": "59", "nameEn": "Veg Bhuna", "nameMr": "व्हेज भुना", "category": "पंजाबी डिशेस", "price": 200, "type": "Normal", "available": true}, {"id": 60, "code": "60", "nameEn": "Veg Lahori", "nameMr": "व्हेज लाहुरी", "category": "पंजाबी डिशेस", "price": 220, "type": "Normal", "available": true}, {"id": 61, "code": "61", "nameEn": "Veg Tawa", "nameMr": "व्हेज तवा", "category": "पंजाबी डिशेस", "price": 200, "type": "Normal", "available": true}, {"id": 62, "code": "62", "nameEn": "Veg Hyderabadi (Green)", "nameMr": "व्हेज हैद्राबादी (ग्रीन)", "category": "पंजाबी डिशेस", "price": 220, "type": "Normal", "available": true}, {"id": 63, "code": "63", "nameEn": "Veg Angara", "nameMr": "व्हेज अंगारा", "category": "पंजाबी डिशेस", "price": 220, "type": "Normal", "available": true}, {"id": 64, "code": "64", "nameEn": "Veg Patiala", "nameMr": "व्हेज पटियाला", "category": "पंजाबी डिशेस", "price": 220, "type": "Normal", "available": true}, {"id": 65, "code": "65", "nameEn": "Veg Maharaja", "nameMr": "व्हेज महाराजा", "category": "पंजाबी डिशेस", "price": 230, "type": "Normal", "available": true}, {"id": 66, "code": "66", "nameEn": "Malai Kofta (Sweet)", "nameMr": "मलाई कोफ्ता स्वीट", "category": "पंजाबी डिशेस", "price": 230, "type": "Normal", "available": true}, {"id": 67, "code": "67", "nameEn": "Kaju Masala", "nameMr": "काजू मसाला", "category": "पंजाबी डिशेस", "price": 210, "type": "Normal", "available": true}, {"id": 68, "code": "68", "nameEn": "Kaju Curry (Sweet)", "nameMr": "काजू करी (स्वीट)", "category": "पंजाबी डिशेस", "price": 220, "type": "Normal", "available": true}, {"id": 69, "code": "69", "nameEn": "Veg Kofta", "nameMr": "व्हेज कोफ्ता", "category": "पंजाबी डिशेस", "price": 230, "type": "Normal", "available": true}, {"id": 70, "code": "70", "nameEn": "Veg Kadai", "nameMr": "व्हेज कढाई", "category": "पंजाबी डिशेस", "price": 200, "type": "Normal", "available": true}, {"id": 71, "code": "71", "nameEn": "Soyabean Dry", "nameMr": "सोयाबीन ड्राय", "category": "पंजाबी डिशेस", "price": 150, "type": "Normal", "available": true}, {"id": 72, "code": "72", "nameEn": "Kabuli Chana Masala", "nameMr": "काबुली चना मसाला", "category": "पंजाबी डिशेस", "price": 150, "type": "Normal", "available": true}, {"id": 73, "code": "73", "nameEn": "Mashroom Masala", "nameMr": "मशरुम मसाला", "category": "मशरुम स्पेशल", "price": 200, "type": "Normal", "available": true}, {"id": 74, "code": "74", "nameEn": "Mashroom Tikka Masala", "nameMr": "मशरुम टिक्का मसाला", "category": "मशरुम स्पेशल", "price": 220, "type": "Normal", "available": true}, {"id": 75, "code": "75", "nameEn": "Mashroom Butter Masala", "nameMr": "मशरुम बटर मसाला", "category": "मशरुम स्पेशल", "price": 210, "type": "Normal", "available": true}, {"id": 76, "code": "76", "nameEn": "Mashroom Hyderabadi", "nameMr": "मशरुम हैद्राबादी", "category": "मशरुम स्पेशल", "price": 220, "type": "Normal", "available": true}, {"id": 77, "code": "77", "nameEn": "Paneer Masala", "nameMr": "पनीर मसाला", "category": "पनीर स्पेशल", "price": 200, "type": "Normal", "available": true}, {"id": 78, "code": "78", "nameEn": "Palak Paneer", "nameMr": "पालक पनीर", "category": "पनीर स्पेशल", "price": 200, "type": "Normal", "available": true}, {"id": 79, "code": "79", "nameEn": "Paneer Maharaja", "nameMr": "पनीर महाराजा", "category": "पनीर स्पेशल", "price": 270, "type": "Normal", "available": true}, {"id": 80, "code": "80", "nameEn": "Tawa Paneer", "nameMr": "तवा पनीर", "category": "पनीर स्पेशल", "price": 210, "type": "Normal", "available": true}, {"id": 81, "code": "81", "nameEn": "Paneer Bhurji", "nameMr": "पनीर भुर्जी", "category": "पनीर स्पेशल", "price": 230, "type": "Normal", "available": true}, {"id": 82, "code": "82", "nameEn": "Paneer Tikka Masala", "nameMr": "पनीर टिक्का मसाला", "category": "पनीर स्पेशल", "price": 220, "type": "Normal", "available": true}, {"id": 83, "code": "83", "nameEn": "Paneer Butter Masala", "nameMr": "पनीर बटर मसाला", "category": "पनीर स्पेशल", "price": 230, "type": "Normal", "available": true}, {"id": 84, "code": "84", "nameEn": "Paneer Patiyala", "nameMr": "पनीर पटीयाला", "category": "पनीर स्पेशल", "price": 240, "type": "Normal", "available": true}, {"id": 85, "code": "85", "nameEn": "Paneer Lababdar", "nameMr": "पनीर लबाबदार", "category": "पनीर स्पेशल", "price": 220, "type": "Normal", "available": true}, {"id": 86, "code": "86", "nameEn": "Paneer Lachedar", "nameMr": "पनीर लच्छेदार", "category": "पनीर स्पेशल", "price": 220, "type": "Normal", "available": true}, {"id": 87, "code": "87", "nameEn": "Paneer Angara", "nameMr": "पनीर अंगारा", "category": "पनीर स्पेशल", "price": 250, "type": "Normal", "available": true}, {"id": 88, "code": "88", "nameEn": "Paneer Kofta", "nameMr": "पनीर कोफ्ता", "category": "पनीर स्पेशल", "price": 250, "type": "Normal", "available": true}, {"id": 89, "code": "89", "nameEn": "Paneer Kheema Masala", "nameMr": "पनीर खिमा मसाला", "category": "पनीर स्पेशल", "price": 210, "type": "Normal", "available": true}, {"id": 90, "code": "90", "nameEn": "Paneer Pasanda", "nameMr": "पनीर पसंदा", "category": "पनीर स्पेशल", "price": 260, "type": "Normal", "available": true}, {"id": 91, "code": "91", "nameEn": "Paneer Bhuna", "nameMr": "पनीर भुना", "category": "पनीर स्पेशल", "price": 210, "type": "Normal", "available": true}, {"id": 92, "code": "92", "nameEn": "Paneer Kadai", "nameMr": "पनीर कढाई", "category": "पनीर स्पेशल", "price": 220, "type": "Normal", "available": true}, {"id": 93, "code": "93", "nameEn": "Kaju Paneer Butter Masala", "nameMr": "काजु पनीर बटर मसाला", "category": "पनीर स्पेशल", "price": 220, "type": "Normal", "available": true}, {"id": 94, "code": "94", "nameEn": "Paneer Khazana Special", "nameMr": "पनीर खजाना स्पेशल", "category": "पनीर स्पेशल", "price": 350, "type": "Normal", "available": true}, {"id": 95, "code": "95", "nameEn": "Paneer Kaleji", "nameMr": "पनीर कलेजी", "category": "पनीर स्पेशल", "price": 250, "type": "Normal", "available": true}, {"id": 96, "code": "96", "nameEn": "Kaju Paneer Masala", "nameMr": "काजु पनीर मसाला", "category": "पनीर स्पेशल", "price": 210, "type": "Normal", "available": true}, {"id": 97, "code": "97", "nameEn": "Mutter Paneer Masala", "nameMr": "मटर पनीर मसाला", "category": "पनीर स्पेशल", "price": 210, "type": "Normal", "available": true}, {"id": 98, "code": "98", "nameEn": "Paneer Handi", "nameMr": "पनीर हंडी", "category": "हंडी स्पेशल", "price": 410, "type": "Normal", "available": true}, {"id": 99, "code": "99", "nameEn": "Mix Veg Handi", "nameMr": "मिक्स व्हेज हंडी", "category": "हंडी स्पेशल", "price": 360, "type": "Normal", "available": true}, {"id": 100, "code": "100", "nameEn": "Shev Bhaji Handi", "nameMr": "शेवभाजी हंडी", "category": "हंडी स्पेशल", "price": 300, "type": "Normal", "available": true}, {"id": 101, "code": "101", "nameEn": "Kaju Handi", "nameMr": "काजु हंडी", "category": "हंडी स्पेशल", "price": 420, "type": "Normal", "available": true}, {"id": 102, "code": "102", "nameEn": "Shevga Handi", "nameMr": "शेवगा हंडी", "category": "हंडी स्पेशल", "price": 320, "type": "Normal", "available": true}, {"id": 103, "code": "103", "nameEn": "Umbar Handi", "nameMr": "उंबर हंडी", "category": "हंडी स्पेशल", "price": 280, "type": "Normal", "available": true}, {"id": 104, "code": "104", "nameEn": "Maratha Handi", "nameMr": "मराठा हंडी", "category": "हंडी स्पेशल", "price": 400, "type": "Normal", "available": true}, {"id": 105, "code": "105", "nameEn": "Lahori Handi", "nameMr": "लाहुरी हंडी", "category": "हंडी स्पेशल", "price": 400, "type": "Normal", "available": true}, {"id": 106, "code": "106", "nameEn": "Bhuna Handi", "nameMr": "भुना हंडी", "category": "हंडी स्पेशल", "price": 380, "type": "Normal", "available": true}, {"id": 107, "code": "107", "nameEn": "Aloo Matar", "nameMr": "आलू मटर", "category": "महाराष्ट्रीयन मेजवानी", "price": 150, "type": "Normal", "available": true}, {"id": 108, "code": "108", "nameEn": "Soyabean Masala", "nameMr": "सोयाबीन मसाला", "category": "महाराष्ट्रीयन मेजवानी", "price": 150, "type": "Normal", "available": true}, {"id": 109, "code": "109", "nameEn": "Shev Bhaji Tadka", "nameMr": "शेवभाजी तडका", "category": "महाराष्ट्रीयन मेजवानी", "price": 160, "type": "Normal", "available": true}, {"id": 110, "code": "110", "nameEn": "Shev Bhaji Green", "nameMr": "शेवभाजी ग्रीन", "category": "महाराष्ट्रीयन मेजवानी", "price": 150, "type": "Normal", "available": true}, {"id": 111, "code": "111", "nameEn": "Shev Bhaji Lal", "nameMr": "शेवभाजी लाल", "category": "महाराष्ट्रीयन मेजवानी", "price": 150, "type": "Normal", "available": true}, {"id": 112, "code": "112", "nameEn": "Shev Bhaji Black", "nameMr": "शेवभाजी ब्लॅक", "category": "महाराष्ट्रीयन मेजवानी", "price": 150, "type": "Normal", "available": true}, {"id": 113, "code": "113", "nameEn": "Shev Bhaji Milk", "nameMr": "शेवभाजी Milk", "category": "महाराष्ट्रीयन मेजवानी", "price": 160, "type": "Normal", "available": true}, {"id": 114, "code": "114", "nameEn": "Baingan Masala", "nameMr": "बैंगन मसाला (लाल)", "category": "महाराष्ट्रीयन मेजवानी", "price": 150, "type": "Normal", "available": true}, {"id": 115, "code": "115", "nameEn": "Lasuni Palk", "nameMr": "लसूनी पालक", "category": "महाराष्ट्रीयन मेजवानी", "price": 150, "type": "Normal", "available": true}, {"id": 116, "code": "116", "nameEn": "Pithla", "nameMr": "पिठल", "category": "महाराष्ट्रीयन मेजवानी", "price": 150, "type": "Normal", "available": true}, {"id": 117, "code": "117", "nameEn": "Shengdana Jirak", "nameMr": "शेंगदाणा झिरकं", "category": "महाराष्ट्रीयन मेजवानी", "price": 150, "type": "Normal", "available": true}, {"id": 118, "code": "118", "nameEn": "Shengdana Chutney", "nameMr": "शेंगदाणा चटणी", "category": "महाराष्ट्रीयन मेजवानी", "price": 130, "type": "Normal", "available": true}, {"id": 119, "code": "119", "nameEn": "Shevga Masala", "nameMr": "शेवगा मसाला", "category": "महाराष्ट्रीयन मेजवानी", "price": 150, "type": "Normal", "available": true}, {"id": 120, "code": "120", "nameEn": "Lasun Methi", "nameMr": "लसून मेथी", "category": "महाराष्ट्रीयन मेजवानी", "price": 160, "type": "Normal", "available": true}, {"id": 121, "code": "121", "nameEn": "Bhendi Masala", "nameMr": "भेंडी मसाला", "category": "महाराष्ट्रीयन मेजवानी", "price": 160, "type": "Normal", "available": true}, {"id": 122, "code": "122", "nameEn": "Bhendi Fry", "nameMr": "भेंडी फ्राय", "category": "महाराष्ट्रीयन मेजवानी", "price": 160, "type": "Normal", "available": true}, {"id": 123, "code": "123", "nameEn": "Methi Pithla", "nameMr": "मेथी पिठल", "category": "महाराष्ट्रीयन मेजवानी", "price": 160, "type": "Normal", "available": true}, {"id": 124, "code": "124", "nameEn": "Mirchi Thecha (Green)", "nameMr": "मिरची ठेचा (ग्रीन)", "category": "महाराष्ट्रीयन मेजवानी", "price": 130, "type": "Normal", "available": true}, {"id": 125, "code": "125", "nameEn": "Dal Fry", "nameMr": "डाल फ्राय", "category": "महाराष्ट्रीयन मेजवानी", "price": 150, "type": "Normal", "available": true}, {"id": 126, "code": "126", "nameEn": "Dal Tadka", "nameMr": "डाल तडका", "category": "महाराष्ट्रीयन मेजवानी", "price": 160, "type": "Normal", "available": true}, {"id": 127, "code": "127", "nameEn": "Dal Vati", "nameMr": "डाल वाटी", "category": "महाराष्ट्रीयन मेजवानी", "price": 50, "type": "Normal", "available": true}, {"id": 128, "code": "128", "nameEn": "Shevga Fry", "nameMr": "शेवगा फ्राय", "category": "महाराष्ट्रीयन मेजवानी", "price": 150, "type": "Normal", "available": true}, {"id": 129, "code": "129", "nameEn": "Matki Masala", "nameMr": "मटकी मसाला", "category": "महाराष्ट्रीयन मेजवानी", "price": 170, "type": "Normal", "available": true}, {"id": 130, "code": "130", "nameEn": "Veg Hyderabadi Biryani", "nameMr": "व्हेज हैद्राबादी बिर्याणी", "category": "राईस", "price": 180, "type": "Normal", "available": true}, {"id": 131, "code": "131", "nameEn": "Veg Biryani", "nameMr": "व्हेज बिर्याणी", "category": "राईस", "price": 180, "type": "Normal", "available": true}, {"id": 132, "code": "132", "nameEn": "Veg Pulao", "nameMr": "व्हेज पुलाव", "category": "राईस", "price": 170, "type": "Normal", "available": true}, {"id": 133, "code": "133", "nameEn": "Masala Rice", "nameMr": "मसाला राईस", "category": "राईस", "price": 160, "type": "Normal", "available": true}, {"id": 134, "code": "134", "nameEn": "kad Rice", "nameMr": "कड राईस", "category": "राईस", "price": 150, "type": "Normal", "available": true}, {"id": 135, "code": "135", "nameEn": "Dahi Bhat", "nameMr": "दही भात", "category": "राईस", "price": 150, "type": "Normal", "available": true}, {"id": 136, "code": "136", "nameEn": "Jeera Rice (Full)", "nameMr": "जिरा राईस फुल", "category": "राईस", "price": 140, "type": "Normal", "available": true}, {"id": 137, "code": "137", "nameEn": "Jeera Rice (Half)", "nameMr": "जिरा राईस हाफ", "category": "राईस", "price": 90, "type": "Normal", "available": true}, {"id": 138, "code": "138", "nameEn": "Steam Rice (Full)", "nameMr": "स्टिम राईस फुल", "category": "राईस", "price": 120, "type": "Normal", "available": true}, {"id": 139, "code": "139", "nameEn": "Steam Rice (Half)", "nameMr": "स्टिम राईस हाफ", "category": "राईस", "price": 70, "type": "Normal", "available": true}, {"id": 140, "code": "140", "nameEn": "Onion Rice (Full)", "nameMr": "ओनियन राईस फुल", "category": "राईस", "price": 150, "type": "Normal", "available": true}, {"id": 141, "code": "141", "nameEn": "Onion Rice (Half)", "nameMr": "ओनियन राईस हाफ", "category": "राईस", "price": 100, "type": "Normal", "available": true}, {"id": 142, "code": "142", "nameEn": "Veg Fried Rice", "nameMr": "व्हेज फ्राईड राईस", "category": "राईस", "price": 180, "type": "Normal", "available": true}, {"id": 143, "code": "143", "nameEn": "Veg Schezwan Rice", "nameMr": "व्हेज शेजवान राईस", "category": "राईस", "price": 180, "type": "Normal", "available": true}, {"id": 144, "code": "144", "nameEn": "Dal Khichda", "nameMr": "दाल खिचडा", "category": "राईस", "price": 170, "type": "Normal", "available": true}, {"id": 145, "code": "145", "nameEn": "Tandoori Roti", "nameMr": "तंदुर रोटी", "category": "रोटी - चपाती", "price": 20, "type": "Normal", "available": true}, {"id": 146, "code": "146", "nameEn": "Tandoori Butter Roti", "nameMr": "बटर रोटी", "category": "रोटी - चपाती", "price": 25, "type": "Normal", "available": true}, {"id": 147, "code": "147", "nameEn": "Butter Naan", "nameMr": "बटर नान", "category": "रोटी - चपाती", "price": 50, "type": "Normal", "available": true}, {"id": 148, "code": "148", "nameEn": "Plain Naan", "nameMr": "प्लेन नान", "category": "रोटी - चपाती", "price": 45, "type": "Normal", "available": true}, {"id": 149, "code": "149", "nameEn": "Kashmiri Naan", "nameMr": "कश्मीरी नान", "category": "रोटी - चपाती", "price": 110, "type": "Normal", "available": true}, {"id": 150, "code": "150", "nameEn": "Lachha Paratha", "nameMr": "लच्छा पराठा", "category": "रोटी - चपाती", "price": 120, "type": "Normal", "available": true}, {"id": 151, "code": "151", "nameEn": "Paneer Paratha", "nameMr": "पनीर पराठा", "category": "रोटी - चपाती", "price": 120, "type": "Normal", "available": true}, {"id": 152, "code": "152", "nameEn": "Butter kulcha", "nameMr": "बटर कुलचा", "category": "रोटी - चपाती", "price": 50, "type": "Normal", "available": true}, {"id": 153, "code": "153", "nameEn": "Plain Kulcha", "nameMr": "प्लेन कुलचा", "category": "रोटी - चपाती", "price": 40, "type": "Normal", "available": true}, {"id": 154, "code": "154", "nameEn": "Garlik Butter Naan", "nameMr": "गार्लीक बटर नान", "category": "रोटी - चपाती", "price": 60, "type": "Normal", "available": true}, {"id": 155, "code": "155", "nameEn": "Garlic Plain Naan", "nameMr": "गार्लीक प्लेन नान", "category": "रोटी - चपाती", "price": 50, "type": "Normal", "available": true}, {"id": 156, "code": "156", "nameEn": "Aloo Paratha", "nameMr": "आलु पराठा", "category": "रोटी - चपाती", "price": 100, "type": "Normal", "available": true}, {"id": 157, "code": "157", "nameEn": "Chapati", "nameMr": "चपाती", "category": "रोटी - चपाती", "price": 20, "type": "Normal", "available": true}, {"id": 158, "code": "158", "nameEn": "Butter Chapati", "nameMr": "बटर चपाती", "category": "रोटी - चपाती", "price": 25, "type": "Normal", "available": true}, {"id": 159, "code": "159", "nameEn": "Bakari Bagrichi", "nameMr": "भाकरी बाजरीची", "category": "रोटी - चपाती", "price": 25, "type": "Normal", "available": true}, {"id": 160, "code": "160", "nameEn": "Bislery Water", "nameMr": "पाणी बॉटल", "category": "कोल्डड्रिंक्स", "price": 20, "type": "Normal", "available": true}, {"id": 161, "code": "161", "nameEn": "Tak", "nameMr": "ताक", "category": "कोल्डड्रिंक्स", "price": 40, "type": "Normal", "available": true}, {"id": 162, "code": "162", "nameEn": "Masala Tak", "nameMr": "मसाला ताक", "category": "कोल्डड्रिंक्स", "price": 50, "type": "Normal", "available": true}, {"id": 163, "code": "163", "nameEn": "Sadhi Lassi", "nameMr": "साधी लस्सी", "category": "कोल्डड्रिंक्स", "price": 60, "type": "Normal", "available": true}, {"id": 164, "code": "164", "nameEn": "Special Lassi", "nameMr": "स्पेशल लस्सी", "category": "कोल्डड्रिंक्स", "price": 80, "type": "Normal", "available": true}, {"id": 165, "code": "165", "nameEn": "Cold Coffee", "nameMr": "कोल्ड कॉफी", "category": "कोल्डड्रिंक्स", "price": 80, "type": "Normal", "available": true}, {"id": 166, "code": "166", "nameEn": "All Cold Coffee", "nameMr": "इतर कोल्ड कॉफी", "category": "कोल्डड्रिंक्स", "price": 80, "type": "Normal", "available": true}, {"id": 167, "code": "167", "nameEn": "Ice-Cream", "nameMr": "आईसक्रीम", "category": "कोल्डड्रिंक्स", "price": 60, "type": "Normal", "available": true}];
+
+        const params = new URLSearchParams(window.location.search);
+        let currentTable = (params.get('table') || '').trim().toUpperCase();
+        if (!currentTable) currentTable = 'L1';
+
+        let menuItems = JSON.parse(JSON.stringify(DEFAULT_MENU));
+        let cart = {};
+        let selectedCategory = 'ALL';
+
+        function updateTableUI() {
+            document.getElementById('table-badge').innerText = 'Table: ' + currentTable;
+            document.getElementById('modal-table-name').innerText = 'Table ' + currentTable;
+        }
+        updateTableUI();
+
+        function changeTableManual() {
+            if (params.get('table')) return;
+            const t = prompt("टेबल नंबर टाका (उदा. L1, R5):", currentTable);
+            if (t && t.trim()) {
+                currentTable = t.trim().toUpperCase();
+                updateTableUI();
+            }
+        }
+
+        function escapeHTML(str) {
+            if (!str) return '';
+            return String(str).replace(/[&<>'"]/g, tag => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[tag]));
+        }
+
+        // Render immediately with built-in 167 items
+        renderCategories();
+        renderMenu();
+
+        // Sync live availability (ON/OFF) & price updates from desktop POS via Firebase
+        db.ref('menu').on('value', (snap) => {
+            const data = snap.val();
+            const cloudItems = Array.isArray(data) ? data.filter(Boolean) : (data ? Object.values(data).filter(Boolean) : []);
+            if (cloudItems.length === 0) return;
+
+            // Start from built-in 167 items and apply live updates from POS
+            const merged = DEFAULT_MENU.map(base => {
+                const match = cloudItems.find(c =>
+                    (c.nameEn && base.nameEn && c.nameEn.trim().toLowerCase() === base.nameEn.trim().toLowerCase()) ||
+                    (c.code && String(c.code).trim() === String(base.code).trim() && c.nameMr === base.nameMr)
+                );
+                if (match) {
+                    return {
+                        ...base,
+                        id: match.id || base.id,
+                        price: Number(match.price) || base.price,
+                        available: match.available !== false
+                    };
+                }
+                return { ...base };
+            });
+
+            // Also include any brand new items added in POS later
+            cloudItems.forEach(c => {
+                const exists = merged.some(m =>
+                    (c.nameEn && m.nameEn && c.nameEn.trim().toLowerCase() === m.nameEn.trim().toLowerCase())
+                );
+                if (!exists) {
+                    merged.push({
+                        id: c.id || Date.now(),
+                        code: String(c.code || ''),
+                        nameEn: c.nameEn || '',
+                        nameMr: c.nameMr || c.nameEn || '',
+                        category: c.category || 'इतर',
+                        price: Number(c.price) || 0,
+                        type: c.type || 'Normal',
+                        available: c.available !== false
+                    });
+                }
+            });
+
+            menuItems = merged;
+
+            // Remove items from cart if turned OFF by owner
+            Object.keys(cart).forEach(id => {
+                const item = menuItems.find(m => String(m.id) === String(id));
+                if (!item || item.available === false) delete cart[id];
+            });
+
+            renderCategories();
+            renderMenu();
+            updateCartBar();
+        });
+
+        function renderCategories() {
+            const bar = document.getElementById('category-bar');
+            const cats = ['ALL', ...new Set(menuItems.map(i => i.category).filter(Boolean))];
+            bar.innerHTML = cats.map(c => {
+                const label = c === 'ALL' ? 'सर्व (All)' : escapeHTML(c);
+                const active = selectedCategory === c ? 'active' : '';
+                return `<button class="cat-pill ${active}" onclick="selectCategory('${escapeHTML(c)}')">${label}</button>`;
+            }).join('');
+        }
+
+        function selectCategory(cat) {
+            selectedCategory = cat;
+            renderCategories();
+            renderMenu();
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        function renderMenu() {
+            const container = document.getElementById('menu-list');
+            const q = document.getElementById('search-input').value.trim().toLowerCase();
+
+            let filtered = menuItems.filter(item => {
+                const catOk = (selectedCategory === 'ALL' || item.category === selectedCategory);
+                if (!catOk) return false;
+                if (!q) return true;
+                return (item.nameEn || '').toLowerCase().includes(q) ||
+                       (item.nameMr || '').toLowerCase().includes(q) ||
+                       (item.category || '').toLowerCase().includes(q) ||
+                       String(item.code || '') === q;
+            });
+
+            if (filtered.length === 0) {
+                container.innerHTML = '<div class="empty-msg">ही डिश सापडली नाही.</div>';
+                return;
+            }
+
+            // Group by category for clean display
+            const groups = {};
+            filtered.forEach(item => {
+                const cat = item.category || 'इतर';
+                if (!groups[cat]) groups[cat] = [];
+                groups[cat].push(item);
+            });
+
+            let html = '';
+            Object.keys(groups).forEach(cat => {
+                html += `<div class="cat-heading">${escapeHTML(cat)}</div>`;
+                const list = groups[cat].sort((a, b) => (b.available !== false ? 1 : 0) - (a.available !== false ? 1 : 0));
+                list.forEach(item => {
+                    const isAvail = item.available !== false;
+                    const qty = cart[item.id] ? cart[item.id].qty : 0;
+                    let actionHtml = '';
+                    if (!isAvail) {
+                        actionHtml = `<span class="badge-unavail">सध्या उपलब्ध नाही</span>`;
+                    } else if (qty > 0) {
+                        actionHtml = `<div class="qty-box">
+                            <button class="qty-btn" onclick="changeQty(${item.id}, -1)">-</button>
+                            <span class="qty-val">${qty}</span>
+                            <button class="qty-btn" onclick="changeQty(${item.id}, 1)">+</button>
+                        </div>`;
+                    } else {
+                        actionHtml = `<button class="add-btn" onclick="changeQty(${item.id}, 1)">+ जोडा</button>`;
+                    }
+
+                    html += `<div class="menu-card ${isAvail ? '' : 'unavailable'}">
+                        <div class="dish-info">
+                            <p class="dish-name-mr"><span class="veg-dot"></span>${escapeHTML(item.nameMr || item.nameEn)}</p>
+                            <p class="dish-name-en">${escapeHTML(item.nameEn)}</p>
+                            <p class="dish-price">₹${item.price}</p>
+                        </div>
+                        <div>${actionHtml}</div>
+                    </div>`;
+                });
+            });
+            container.innerHTML = html;
+        }
+
+        function changeQty(id, delta) {
+            const item = menuItems.find(m => m.id === id);
+            if (!item || item.available === false) return;
+            if (!cart[id]) {
+                if (delta > 0) cart[id] = { ...item, qty: delta };
+            } else {
+                cart[id].qty += delta;
+                if (cart[id].qty <= 0) delete cart[id];
+            }
+            renderMenu();
+            updateCartBar();
+            if (document.getElementById('cart-modal').classList.contains('open')) renderCartModal();
+        }
+
+        function updateCartBar() {
+            const items = Object.values(cart);
+            const totalQty = items.reduce((s, i) => s + i.qty, 0);
+            const totalAmt = items.reduce((s, i) => s + (i.price * i.qty), 0);
+            const bar = document.getElementById('cart-bar');
+            if (totalQty > 0) {
+                document.getElementById('cart-bar-count').innerText = `${totalQty} आयटम निवडले`;
+                document.getElementById('cart-bar-total').innerText = `₹${totalAmt}`;
+                bar.classList.add('show');
+            } else {
+                bar.classList.remove('show');
+            }
+        }
+
+        function openCartModal() {
+            renderCartModal();
+            document.getElementById('cart-modal').classList.add('open');
+        }
+        function closeCartModal() {
+            document.getElementById('cart-modal').classList.remove('open');
+        }
+
+        function renderCartModal() {
+            const items = Object.values(cart);
+            const list = document.getElementById('cart-items-list');
+            if (items.length === 0) {
+                closeCartModal();
+                return;
+            }
+            let total = 0;
+            list.innerHTML = items.map(i => {
+                total += i.price * i.qty;
+                return `<div class="cart-row">
+                    <div>
+                        <div style="font-weight:800; font-size:14px;">${escapeHTML(i.nameMr || i.nameEn)}</div>
+                        <div style="font-size:12px; color:#64748b;">₹${i.price} x ${i.qty} = <b>₹${i.price * i.qty}</b></div>
+                    </div>
+                    <div class="qty-box">
+                        <button class="qty-btn" onclick="changeQty(${i.id}, -1)">-</button>
+                        <span class="qty-val">${i.qty}</span>
+                        <button class="qty-btn" onclick="changeQty(${i.id}, 1)">+</button>
+                    </div>
+                </div>`;
+            }).join('');
+            document.getElementById('modal-total').innerText = `₹${total}`;
+        }
+
+        function placeOrder() {
+            const items = Object.values(cart);
+            if (items.length === 0) return;
+
+            const btn = document.getElementById('place-order-btn');
+            btn.disabled = true;
+            btn.innerText = '⏳ ऑर्डर पाठवत आहे...';
+
+            const d = new Date();
+            const pad = n => n < 10 ? '0' + n : n;
+            const timeStr = `${pad(d.getHours())}:${pad(d.getMinutes())}`;
+            const total = items.reduce((s, i) => s + (i.price * i.qty), 0);
+
+            const orderPayload = {
+                table: currentTable,
+                customerName: document.getElementById('cust-name').value.trim() || 'Guest',
+                customerPhone: document.getElementById('cust-phone').value.trim() || '',
+                time: timeStr,
+                createdAt: Date.now(),
+                status: 'PENDING',
+                total: total,
+                items: items.map(i => ({
+                    id: i.id, code: i.code || '', nameEn: i.nameEn, nameMr: i.nameMr,
+                    price: i.price, category: i.category, type: i.type || 'Normal', qty: i.qty
+                }))
+            };
+
+            const newRef = db.ref('qr_orders').push();
+            newRef.set(orderPayload).then(() => {
+                cart = {};
+                renderMenu();
+                updateCartBar();
+                closeCartModal();
+                btn.disabled = false;
+                btn.innerText = '✅ ऑर्डर कन्फर्म करा (Place Order)';
+                trackOrderStatus(newRef.key);
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+            }).catch(() => {
+                alert('ऑर्डर पाठवताना अडचण आली. कृपया इंटरनेट तपासा.');
+                btn.disabled = false;
+                btn.innerText = '✅ ऑर्डर कन्फर्म करा (Place Order)';
+            });
+        }
+
+        function trackOrderStatus(orderKey) {
+            const banner = document.getElementById('order-status-banner');
+            db.ref('qr_orders/' + orderKey + '/status').on('value', (snap) => {
+                const st = snap.val();
+                if (st === 'PENDING') {
+                    banner.className = 'status-card status-pending';
+                    banner.innerText = '⏳ तुमची ऑर्डर काउंटरवर पाठवली आहे! कन्फर्मेशनची वाट पाहत आहे...';
+                } else if (st === 'ACCEPTED') {
+                    banner.className = 'status-card status-accepted';
+                    banner.innerText = '✅ तुमची ऑर्डर स्वीकारली आहे! लवकरच तुमच्या टेबलवर सर्व्ह केली जाईल.';
+                } else if (st === 'REJECTED') {
+                    banner.className = 'status-card status-rejected';
+                    banner.innerText = '❌ क्षमस्व, ही ऑर्डर रद्द झाली आहे. कृपया वेटरशी संपर्क साधा.';
+                }
+            });
+        }
+    </script>
+</body>
+</html>
