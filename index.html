@@ -527,5 +527,32 @@
             });
         }
     </script>
+})();
+</script>
+
+<script>
+// बिल सेव्ह किंवा रद्द झाल्यावर टेबल लॉक आपोआप काढा
+(function() {
+    function unlockTableInCloud(tbl) {
+        if (typeof firebase !== 'undefined' && firebase.apps.length && tbl) {
+            firebase.database().ref('table_locks/' + tbl).remove().catch(() => {});
+        }
+    }
+    const _origComplete = window.completeAndSaveBill;
+    window.completeAndSaveBill = function(askConfirm) {
+        const tbl = currentTable;
+        _origComplete(askConfirm);
+        if (!tableOrders[tbl] || tableOrders[tbl].length === 0) unlockTableInCloud(tbl);
+    };
+    const _origClear = window.clearOrder;
+    window.clearOrder = function() {
+        const tbl = currentTable;
+        _origClear();
+        if (!tableOrders[tbl] || tableOrders[tbl].length === 0) unlockTableInCloud(tbl);
+    };
+})();
+</script>
+</body>
+</html>
 </body>
 </html>
