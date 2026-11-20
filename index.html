@@ -241,6 +241,25 @@
 </head>
 <body>
 
+    
+    <!-- HOTEL CLOSED / TIMING OVERLAY -->
+    <div id="hotel-closed-overlay" class="locked-overlay" style="z-index: 99999;">
+        <div class="locked-card" style="border-color: #f59e0b;">
+            <div style="font-size:48px; margin-bottom:10px;">⏰</div>
+            <h2 style="margin:0 0 8px; color:#fbbf24; font-size:22px;">हॉटेल सध्या बंद आहे!</h2>
+            <p id="closed-reason-text" style="margin:0 0 12px; font-size:14px; color:#e2e8f0; line-height:1.5;">
+                सध्या ऑनलाईन ऑर्डरची वेळ संपली आहे.
+            </p>
+            <div style="background:#0f172a; border:1px solid #334155; border-radius:12px; padding:12px; margin-bottom:12px;">
+                <div style="font-size:11px; color:#94a3b8; font-weight:700; text-transform:uppercase;">ऑर्डर घेण्याची वेळ</div>
+                <div id="closed-timing-display" style="font-size:16px; font-weight:900; color:#fff; margin-top:4px;">सकाळी 11:00 ते रात्री 12:00</div>
+            </div>
+            <p style="margin:0; font-size:12px; color:#94a3b8;">
+                आरंभ Pure Veg ला भेट दिल्याबद्दल धन्यवाद! 🙏
+            </p>
+        </div>
+    </div>
+
     <!-- TABLE BOOKED / LOCKED OVERLAY -->
     <div id="table-locked-overlay" class="locked-overlay">
         <div class="locked-card">
@@ -397,6 +416,79 @@
             }
             window.scrollTo({ top: 0, behavior: 'smooth' });
         }
+
+        
+        // ===== 0. HOTEL CUSTOM TIMINGS (Default: 11:00 AM to 12:00 AM) =====
+        let hotelTimings = { openTime: "11:00", closeTime: "00:00", manualClose: false };
+
+        function formatTime12Hr(hhmm) {
+            if (!hhmm || !hhmm.includes(':')) return hhmm || '';
+            let [h, m] = hhmm.split(':').map(Number);
+            const pad = n => n < 10 ? '0' + n : n;
+            let period = 'सकाळी';
+            if (h === 0) { period = 'रात्री'; h = 12; }
+            else if (h >= 12 && h < 16) { period = 'दुपारी'; if (h > 12) h -= 12; }
+            else if (h >= 16 && h < 20) { period = 'संध्याकाळी'; h -= 12; }
+            else if (h >= 20) { period = 'रात्री'; h -= 12; }
+            else if (h < 5) { period = 'मध्यरात्री'; }
+            return `${period} ${h}:${pad(m)}`;
+        }
+
+        function checkHotelOpenStatus() {
+            const overlay = document.getElementById('hotel-closed-overlay');
+            const timingDisplay = document.getElementById('closed-timing-display');
+            const reasonText = document.getElementById('closed-reason-text');
+
+            const openStr = hotelTimings.openTime || "11:00";
+            const closeStr = hotelTimings.closeTime || "00:00";
+            timingDisplay.innerText = `${formatTime12Hr(openStr)} ते ${formatTime12Hr(closeStr)}`;
+
+            if (hotelTimings.manualClose === true) {
+                reasonText.innerText = "सध्या हॉटेलकडून ऑनलाईन ऑर्डर तात्पुरती बंद ठेवली आहे.";
+                overlay.classList.add('show');
+                return;
+            }
+
+            const now = new Date();
+            const curMins = now.getHours() * 60 + now.getMinutes();
+            const [oh, om] = openStr.split(':').map(Number);
+            const [ch, cm] = closeStr.split(':').map(Number);
+            const openMins = oh * 60 + om;
+            let closeMins = ch * 60 + cm;
+
+            let isOpen = false;
+            if (closeMins === 0) closeMins = 24 * 60; // 00:00 means midnight end of day
+
+            if (openMins < closeMins) {
+                isOpen = (curMins >= openMins && curMins < closeMins);
+            } else {
+                // Overnight (e.g., 11:00 to 01:00)
+                isOpen = (curMins >= openMins || curMins < closeMins);
+            }
+
+            if (isOpen) {
+                overlay.classList.remove('show');
+            } else {
+                reasonText.innerText = "सध्या ऑनलाईन ऑर्डरची वेळ संपली आहे. कृपया खालील वेळेत पुन्हा प्रयत्न करा.";
+                overlay.classList.add('show');
+            }
+        }
+
+        // Listen for custom timing updates from Desktop POS
+        db.ref('hotel_settings/timings').on('value', (snap) => {
+            const val = snap.val();
+            if (val) {
+                hotelTimings = {
+                    openTime: val.openTime || "11:00",
+                    closeTime: val.closeTime || "00:00",
+                    manualClose: val.manualClose === true
+                };
+            }
+            checkHotelOpenStatus();
+        });
+
+        checkHotelOpenStatus();
+        setInterval(checkHotelOpenStatus, 30000);
 
         // ===== 1. TABLE LOCK SYSTEM (1 Device = 1 Table) =====
         let lockRefListener = null;
